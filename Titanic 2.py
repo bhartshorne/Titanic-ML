@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor,BaggingRegressor,GradientBoostingRegressor,AdaBoostRegressor
+from sklearn.model_selection import cross_val_score
 import os
 
 try:
@@ -22,7 +26,6 @@ print(test.shape)
 train.Survived.value_counts(normalize = True)
 
 # Check Relationships to target variable
-train.columns.values
 
 # Percentage of total by gender
 train.Sex.value_counts(normalize = True)
@@ -51,7 +54,7 @@ Let's look at some correlation stats for our ordinal variables.
 
 train[['Survived', 'Parch', 'SibSp']].corr(method='spearman') # Not a strong correlation.
 
-'''Now for some feature engineering.
+'''Looks like ther are slight, positive correlations. Now for feature engineering.
 So not to repeat steps I'm going to join both datasets and then break them apart when I'm done.'''
 
 df = train.append(test, sort=True)
@@ -100,16 +103,54 @@ df.Fare = df.Fare.fillna(df.Fare.mean())
 df.Age.describe()
 df.Age.isnull().sum()
 
-# Let's fill NAs with a model after we prep the data some more.
+# # # # Let's fill age NAs with a ML model
+
+# Drop irrelevant columns for this model - could redo this once I have useful data for cabin and ticket
+age = df.drop(columns = ['Cabin', 'Survived', 'Ticket'])
+
+# Pclass should be a categorical variable
+age['Pclass'] = age['Pclass'].astype('object')
+
+# Create Dummies
+age = pd.get_dummies(age, columns = ['Name Split', 'Sex', 'Pclass', 'Embarked'], drop_first = True)
+
+# Create train and predict datasets
+age_train = age[age['Age'].notnull()]
+age_test = age[age['Age'].isnull()]
+age_test = age_test.drop(columns = ['Age'])
+len(age_train)
+len(age_test)
+
+# Grab target vector
+age_X = age_train.drop(columns = ['Age'])
+age_y = age_train['Age']
+
+# Create Random Forest model
+rf = RandomForestRegressor(n_estimators=100)
+
+# Evaluate model using five fold cross validation
+scores = cross_val_score(rf, age_X, age_y, cv=5, scoring='neg_mean_squared_error')
+
+# Mean score with 95% confidence interval
+print("RF MSE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 
-# Pclass should be categorical because it's not a nominal variable
-df.Pclass = df.Pclass.astype('object')
+# Create Adaboost Model
+ad = AdaBoostRegressor(n_estimators=100, learning_rate=1)
 
-# Create Dummy Variables for categorical variables
-df = pd.get_dummies(df, columns = ['Name Split', 'Sex', 'Embarked', 'Pclass'], drop_first=True)
+# Evaluate model using five fold cross validation
+scores = cross_val_score(ad, age_X, age_y, cv=5, scoring='neg_mean_squared_error')
 
-df.dtypes
+# Mean score with 95% confidence interval
+print("Adaboost MSE: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
+# I'll use RF for now - train model on all data
+rf.fit(age_X, age_y)
 
+# Make preds
+age_preds = np.around(rf.predict(age_test))
 
+# Replace age nulls in original dataframe
+df.loc[df['Age'].isnull(), 'Age'] = age_preds
+
+df.isnull().sum()
