@@ -6,6 +6,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor,BaggingRegressor,GradientBoostingRegressor,AdaBoostRegressor
 from sklearn.model_selection import cross_val_score
+from sklearn.preprocessing import StandardScaler
 import os
 
 try:
@@ -153,4 +154,58 @@ age_preds = np.around(rf.predict(age_test))
 # Replace age nulls in original dataframe
 df.loc[df['Age'].isnull(), 'Age'] = age_preds
 
-df.isnull().sum()
+# Should we use the cabin column?
+df.Cabin.isnull().sum() / len(df)
+
+'''Because 77% of the values are null, I'm going to drop this column.
+I'd be interested to see how others filled this column effectively, and if it had value after doing so.'''
+
+df = df.drop(columns = ['Cabin'])
+
+df.isnull().sum() # Nulls are all clean.
+
+'''# I'm also going to drop the ticket number column for now. I'm don't have
+a clear idea how this column could be engineered into something useful.
+'''
+
+df = df.drop(columns=['Ticket'])
+
+# Let's create dummy variables.
+df_ready = pd.get_dummies(df, columns=['Embarked', 'Pclass', 'Sex', 'Name Split'], drop_first=True)
+# Split back into training and testing datasets.
+train = df_ready[~pd.isnull(df_ready['Survived'])]
+test = df_ready[pd.isnull(df_ready['Survived'])].drop(columns=['Survived'])
+
+# Grab Target
+X = train.drop(columns = ['Survived'])
+y = train['Survived']
+
+'''For some models we'll want to use feature scaling, and for our
+tree based models we won't want to. I'll created scaled, and unscaled versions of the data.'''
+
+
+sc = StandardScaler()
+Xs = sc.fit_transform(X)
+testS = sc.transform(test)
+
+# Start with logistic regression with scaled data and 10 fold cross validation.
+from sklearn.linear_model import LogisticRegression
+
+lr = LogisticRegression(solver='lbfgs')
+scores = cross_val_score(lr, Xs, y, cv=10, scoring='accuracy')
+print("Logistic Regression Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+# Support Vector Machine with 10 fold cross validation
+from sklearn.svm import SVC
+
+svm = SVC(gamma='scale')
+scores = cross_val_score(svm, Xs, y, cv=10, scoring='accuracy')
+print("Simple Support Vector Machine Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
+
+'''Next steps:
+- Tune parameters for both these models
+- Train tree based models (XGBoost, AdaBoost, Random Forest)
+- Tune those models
+- Make first submission
+- Add feature engineering for dropped columns above.
+'''
