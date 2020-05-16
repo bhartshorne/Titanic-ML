@@ -12,8 +12,7 @@ import os
 try:
     os.chdir(r'C:\Users\Billy Hansen\Desktop\Kaggle Practice\Titanic')
 except:
-    # Enter Brett's path here.
-    doggydoggy
+    os.chdir(r'C:\Users\Owner\Desktop\Machine Learning Practice\Titanic ML')
 
 # importing data
 train = pd.read_csv('train.csv')
@@ -43,11 +42,11 @@ train['Survived'].groupby(train['Pclass']).mean()  # Another Useful Variable
 train.Embarked.value_counts(normalize=True)
 
 # Percentage survived by embarked
+train['Survived'].groupby(train['Embarked']).mean()
 
 '''Does embarked really matter or is this difference random?
 Intuitivelly it seemms like it wouldn't matter much which port you took off from,
-especially because you are assitrain['Survived'].groupby(train['Embarked']).mean()
-gned to a cabin anyway.
+especially because you are assigned to a cabin anyway.
 
 Let's look at some correlation stats for our ordinal variables. 
 '''
