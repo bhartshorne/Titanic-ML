@@ -7,6 +7,13 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor, BaggingRegressor, GradientBoostingRegressor, AdaBoostRegressor
 from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import GridSearchCV
+from sklearn.svm import SVC
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score
+
 import os
 
 try:
@@ -186,15 +193,11 @@ Xs = sc.fit_transform(X)
 testS = sc.transform(test)
 
 # Start with logistic regression with scaled data and 10 fold cross validation.
-from sklearn.linear_model import LogisticRegression
-
 lr = LogisticRegression(solver='lbfgs')
 scores = cross_val_score(lr, Xs, y, cv=10, scoring='accuracy')
 print("Logistic Regression Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
 
 # Support Vector Machine with 10 fold cross validation
-from sklearn.svm import SVC
-
 svm = SVC(gamma='scale')
 scores = cross_val_score(svm, Xs, y, cv=10, scoring='accuracy')
 print("Simple Support Vector Machine Accuracy: %0.2f (+/- %0.2f)" % (scores.mean(), scores.std() * 2))
@@ -202,8 +205,6 @@ print("Simple Support Vector Machine Accuracy: %0.2f (+/- %0.2f)" % (scores.mean
 # Grid Search for Logistic Regression - We'll split the data for this step
 X_train_S, X_test_S, y_train_S, y_test_S = train_test_split(Xs, y, test_size=.15, random_state=12)
 
-from sklearn.model_selection import GridSearchCV
-from sklearn.metrics import accuracy_score
 
 lr = LogisticRegression(solver='liblinear')
 params = {'C': [.5, 1, 1.5], 'max_iter': [100, 50, 150]}
@@ -236,6 +237,73 @@ preds = grid_svm.predict(X_test_S)
 print(grid_svm.best_params_)
 print("Accuracy For SVM: ", round(accuracy_score(y_test_S, preds), 2))
 
+# Let's Try XGBoost
+from xgboost import XGBClassifier
+
+# Split Unscaled Data
+# Grid Search for Logistic Regression - We'll split the data for this step
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.15, random_state=12)
+
+# For XGBoost and other tree based models we'll use unscaled data - We'll grid search right away
+XG = XGBClassifier(objective='binary:logistic')
+
+params = {'eta':[.1, .3, .5], 'max_depth': [4, 6, 8]}
+
+grid_XGB = GridSearchCV(XG,
+                       params,
+                       scoring='accuracy',
+                       cv=10)
+
+grid_XGB.fit(X_train, y_train)
+
+preds = grid_XGB.predict(X_test)
+
+
+print(grid_XGB.best_params_)
+print("Accuracy For XGBoost: ", round(accuracy_score(y_test, preds), 2))
+
+# Let's Try XGBoost
+# Split Unscaled Data
+# Grid Search for Logistic Regression - We'll split the data for this step
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.15, random_state=12)
+
+# For XGBoost and other tree based models we'll use unscaled data - We'll grid search right away
+XG = XGBClassifier(objective='binary:logistic')
+
+params = {'eta':[.1, .3, .5], 'max_depth': [4, 6, 8]}
+
+grid_XGB = GridSearchCV(XG,
+                       params,
+                       scoring='accuracy',
+                       cv=10)
+
+grid_XGB.fit(X_train, y_train)
+
+preds = grid_XGB.predict(X_test)
+
+
+print(grid_XGB.best_params_)
+print("Accuracy For XGBoost: ", round(accuracy_score(y_test, preds), 2))
+
+
+# Random Forest
+from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier(n_estimators=300)
+
+params = {'criterion': ['gini', 'entropy'], 'min_samples_split': [.5, 2, 5,], 'min_samples_leaf': [1, 2, 5]}
+
+grid_RF = GridSearchCV(rf,
+                       params,
+                       scoring='accuracy',
+                       cv=10)
+
+grid_RF.fit(X_train, y_train)
+
+preds = grid_RF.predict(X_test)
+
+
+print(grid_RF.best_params_)
+print("Accuracy For RF: ", round(accuracy_score(y_test, preds), 2))
 
 '''Next steps:
 - Train tree based models (XGBoost, AdaBoost, Random Forest)
@@ -244,4 +312,4 @@ print("Accuracy For SVM: ", round(accuracy_score(y_test_S, preds), 2))
 - Add feature engineering for dropped columns above.
 '''
 
-#
+
