@@ -13,7 +13,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from xgboost import XGBClassifier
 from sklearn.metrics import accuracy_score
-
 import os
 
 try:
@@ -305,11 +304,22 @@ preds = grid_RF.predict(X_test)
 print(grid_RF.best_params_)
 print("Accuracy For RF: ", round(accuracy_score(y_test, preds), 2))
 
-'''Next steps:
-- Train tree based models (XGBoost, AdaBoost, Random Forest)
-- Tune those models
-- Make first submission
-- Add feature engineering for dropped columns above.
-'''
 
+# Naive Bayes Model
+from sklearn.naive_bayes import GaussianNB
+gnb = GaussianNB()
 
+preds = gnb.fit(X_train, y_train).predict(X_test)
+print("Accuracy For Naive Bayes is: ", round(accuracy_score(y_test, preds), 2))
+
+# Make first submission - Best model right now is the grid search logistic regression
+
+final_preds = grid_lr.predict(test)
+
+test = pd.read_csv('test.csv')
+sub = test[['PassengerId']]
+sub['Survived'] = final_preds
+
+sub['Survived'] = sub['Survived'].astype('int32')
+
+sub.to_csv('Sub2.csv', index=False)
