@@ -161,12 +161,87 @@ df.loc[df['Age'].isnull(), 'Age'] = age_preds
 # Should we use the cabin column?
 df.Cabin.isnull().sum() / len(df)
 
-'''Because 77% of the values are null, I'm going to drop this column.
-I'd be interested to see how others filled this column effectively, and if it had value after doing so.'''
+'''At first I thought that I should drop the cabin column. But I saw on a few notebooks 
+a simple "Has Cabin" feature. I'll try that.'''
 
+
+def cabin(row):
+    if pd.isnull(row['Cabin']):
+        return 0
+    else:
+        return 1
+
+
+df['Has Cabin'] = df.apply(cabin, axis=1)
+
+# Now we'll drop the cabin column
 df = df.drop(columns=['Cabin'])
 
+# Let's see how the cabin column relates to the target variable.
+df['Has Cabin'].value_counts(normalize=True)
+df['Survived'].groupby(df['Has Cabin']).mean()  # I'm surprised at this correlation, and that it might be useful.
+
 df.isnull().sum()  # Nulls are all clean.
+
+
+# Let's create another binary column for if the passenger is alone
+def alone(row):
+    if row['SibSp'] + row['Parch'] == 0:
+        return 1
+    else:
+        return 0
+
+
+df['Alone'] = df.apply(alone, axis=1)
+
+df.Alone.value_counts(normalize=True)
+
+df.Survived.groupby(df.Alone).mean()  # Might also be useful
+
+
+# Let's bin Age and Fare columns
+def age(row):
+    if row['Age'] < 19:
+        return 'Minor'
+    elif row['Age'] < 32:
+        return 'Young Adult'
+    elif row['Age'] < 50:
+        return 'Middle Aged'
+    elif row['Age'] < 70:
+        return 'Getting Old'
+    else:
+        return 'Old'
+
+
+df['Age Category'] = df.apply(age, axis=1)
+
+df['Age Category'].value_counts(normalize=True)
+df['Survived'].groupby(df['Age Category']).mean()
+
+# Fare Categories
+sns.boxplot(df['Fare'])
+
+'''There are some pretty bad outliers here. Maybe Binning will help.'''
+
+df['Fare'].describe()
+
+
+def fare(row):
+    if row['Fare'] < 8:
+        return 'Cheap'
+    elif row['Fare'] < 32:
+        return 'Average'
+    else:
+        return 'Expensive'
+
+
+df['Fare Categories'] = df.apply(fare, axis=1)
+
+df['Fare Categories'].value_counts(normalize=True)
+df.Survived.groupby(df['Fare Categories']).mean() # Swag
+
+# Drop Age and fare Variable
+df = df.drop(columns=['Age', 'Fare'])
 
 '''# I'm also going to drop the ticket number column for now. I'm don't have
 a clear idea how this column could be engineered into something useful.
@@ -175,7 +250,7 @@ a clear idea how this column could be engineered into something useful.
 df = df.drop(columns=['Ticket'])
 
 # Let's create dummy variables.
-df_ready = pd.get_dummies(df, columns=['Embarked', 'Pclass', 'Sex', 'Name Split'], drop_first=True)
+df_ready = pd.get_dummies(df, columns=['Embarked', 'Pclass', 'Sex', 'Name Split', 'Age Category', 'Fare Categories'], drop_first=True)
 # Split back into training and testing datasets.
 train = df_ready[~pd.isnull(df_ready['Survived'])]
 test = df_ready[pd.isnull(df_ready['Survived'])].drop(columns=['Survived'])
@@ -204,7 +279,6 @@ print("Simple Support Vector Machine Accuracy: %0.2f (+/- %0.2f)" % (scores.mean
 # Grid Search for Logistic Regression - We'll split the data for this step
 X_train_S, X_test_S, y_train_S, y_test_S = train_test_split(Xs, y, test_size=.15, random_state=12)
 
-
 lr = LogisticRegression(solver='liblinear')
 params = {'C': [.5, 1, 1.5], 'max_iter': [100, 50, 150]}
 
@@ -225,9 +299,9 @@ svm = SVC(gamma='scale')
 params = {'C': [.5, 1, 1.5, 2], 'kernel': ['rbf', 'linear']}
 
 grid_svm = GridSearchCV(svm,
-                       params,
-                       scoring='accuracy',
-                       cv=10)
+                        params,
+                        scoring='accuracy',
+                        cv=10)
 
 grid_svm.fit(X_train_S, y_train_S)
 
@@ -246,40 +320,16 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.15, random_
 # For XGBoost and other tree based models we'll use unscaled data - We'll grid search right away
 XG = XGBClassifier(objective='binary:logistic')
 
-params = {'eta':[.1, .3, .5], 'max_depth': [4, 6, 8]}
+params = {'eta': [.1, .3, .5], 'max_depth': [4, 6, 8]}
 
 grid_XGB = GridSearchCV(XG,
-                       params,
-                       scoring='accuracy',
-                       cv=10)
+                        params,
+                        scoring='accuracy',
+                        cv=10)
 
 grid_XGB.fit(X_train, y_train)
 
 preds = grid_XGB.predict(X_test)
-
-
-print(grid_XGB.best_params_)
-print("Accuracy For XGBoost: ", round(accuracy_score(y_test, preds), 2))
-
-# Let's Try XGBoost
-# Split Unscaled Data
-# Grid Search for Logistic Regression - We'll split the data for this step
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.15, random_state=12)
-
-# For XGBoost and other tree based models we'll use unscaled data - We'll grid search right away
-XG = XGBClassifier(objective='binary:logistic')
-
-params = {'eta':[.1, .3, .5], 'max_depth': [4, 6, 8]}
-
-grid_XGB = GridSearchCV(XG,
-                       params,
-                       scoring='accuracy',
-                       cv=10)
-
-grid_XGB.fit(X_train, y_train)
-
-preds = grid_XGB.predict(X_test)
-
 
 print(grid_XGB.best_params_)
 print("Accuracy For XGBoost: ", round(accuracy_score(y_test, preds), 2))
@@ -287,9 +337,10 @@ print("Accuracy For XGBoost: ", round(accuracy_score(y_test, preds), 2))
 
 # Random Forest
 from sklearn.ensemble import RandomForestClassifier
+
 rf = RandomForestClassifier(n_estimators=300)
 
-params = {'criterion': ['gini', 'entropy'], 'min_samples_split': [.5, 2, 5,], 'min_samples_leaf': [1, 2, 5]}
+params = {'criterion': ['gini', 'entropy'], 'min_samples_split': [.5, 2, 5, ], 'min_samples_leaf': [1, 2, 5]}
 
 grid_RF = GridSearchCV(rf,
                        params,
@@ -300,13 +351,12 @@ grid_RF.fit(X_train, y_train)
 
 preds = grid_RF.predict(X_test)
 
-
 print(grid_RF.best_params_)
 print("Accuracy For RF: ", round(accuracy_score(y_test, preds), 2))
 
-
 # Naive Bayes Model
 from sklearn.naive_bayes import GaussianNB
+
 gnb = GaussianNB()
 
 preds = gnb.fit(X_train, y_train).predict(X_test)
@@ -322,7 +372,17 @@ sub['Survived'] = final_preds
 
 sub['Survived'] = sub['Survived'].astype('int32')
 
-sub.to_csv('SubLRS.csv', index=False)
+sub.to_csv('Sub4.csv', index=False)
 
+# Make Submission with XGBoost
+final_preds = grid_XGB.predict(test)
 
+test2 = pd.read_csv('test.csv')
+sub = test2[['PassengerId']]
+sub['Survived'] = final_preds
 
+sub['Survived'] = sub['Survived'].astype('int32')
+
+sub.to_csv('Sub5.csv', index=False)
+
+# Ensemble model stacking
