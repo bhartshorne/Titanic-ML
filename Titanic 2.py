@@ -314,12 +314,15 @@ print("Accuracy For Naive Bayes is: ", round(accuracy_score(y_test, preds), 2))
 
 # Make first submission - Best model right now is the grid search logistic regression
 
-final_preds = grid_lr.predict(test)
+final_preds = grid_lr.predict(testS)
 
-test = pd.read_csv('test.csv')
-sub = test[['PassengerId']]
+test2 = pd.read_csv('test.csv')
+sub = test2[['PassengerId']]
 sub['Survived'] = final_preds
 
 sub['Survived'] = sub['Survived'].astype('int32')
 
-sub.to_csv('Sub2.csv', index=False)
+sub.to_csv('SubLRS.csv', index=False)
+
+
+
