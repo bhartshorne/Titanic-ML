@@ -375,16 +375,125 @@ model.fit(train_X,train_Y)
 pred1 = model.predict(test_X)
 print('Accuracy for rbf SVM is ', metrics.accuracy_score(pred1,test_Y))
 
+#Radial SVM (rbf kernel)
+model = svm.SVC(kernel='linear',C=0.1,gamma=0.1)
+model.fit(train_X,train_Y)
+pred2 = model.predict(test_X)
+print('Accuracy for Linear SVM is ', metrics.accuracy_score(pred2,test_Y))
 
+#Logistic Regression
+model = LogisticRegression()
+model.fit(train_X, train_Y)
+pred3 = model.predict(test_X)
+print('Accuracy for Logistic Regression is ', metrics.accuracy_score(pred3,test_Y))
 
+#Decision Tree
+model = DecisionTreeClassifier()
+model.fit(train_X,train_Y)
+pred4 = model.predict(test_X)
+print('The accuracy of the Decision Tree is',metrics.accuracy_score(pred4,test_Y))
 
+#K-NearestNeighbor
+model = KNeighborsClassifier()
+model.fit(train_X, train_Y)
+pred5 = model.predict(test_X)
+print('The accuracy of KNN is',metrics.accuracy_score(pred5, test_Y))
 
+#Experimenting with different neighbors values
+a_index = list(range(1,11))
+a = pd.Series()
+x = list(range(0,11))
+for i in list(range(1,11)):
+    model = KNeighborsClassifier(n_neighbors = i)
+    model.fit(train_X, train_Y)
+    pred = model.predict(test_X)
+    a = a.append(pd.Series(metrics.accuracy_score(pred, test_Y)))
+plt.plot(a_index, a)
+plt.xticks(x)
+fig = plt.gcf()
+fig.set_size_inches(12,6)
+plt.show()
+print('Accuracies for different values of n are:',a.values,'with the max value as ',a.values.max())
+# 9 neighbors gives the most accurace result
 
+#Naive Bayes
+model = GaussianNB()
+model.fit(train_X,train_Y)
+pred6 = model.predict(test_X)
+print('The accuracy of the NaiveBayes is',metrics.accuracy_score(pred6,test_Y))
 
+#Random Forest
+model = RandomForestClassifier(n_estimators=100)
+model.fit(train_X,train_Y)
+pred7 = model.predict(test_X)
+print('The accuracy of the Random Forests is',metrics.accuracy_score(pred7,test_Y))
 
+'''IMPORTANT NOTE -- accuracy is not the only factor that determines robustness of 
+a model. Training and testing data changes, the accuracy will change too, it' called
+model variance. To overcome this we use a generalized model - cross validation'''
 
+# Cross validation
+from sklearn.model_selection import KFold #for K-fold cross validation
+from sklearn.model_selection import cross_val_score #score evaluation
+from sklearn.model_selection import cross_val_predict #prediction
+kfold = KFold(n_splits = 10, random_state = 22)
+cv_mean = []
+accuracy = []
+std = []
+classifiers = ['Linear Svm','Radial Svm','Logistic Regression',\
+               'KNN','Decision Tree','Naive Bayes','Random Forest']
+models=[svm.SVC(kernel='linear'),svm.SVC(kernel='rbf'),LogisticRegression(),\
+        KNeighborsClassifier(n_neighbors=9),DecisionTreeClassifier(),GaussianNB(),\
+        RandomForestClassifier(n_estimators=100)]
+for i in models:
+    model = i
+    cv_result = cross_val_score(model, X,Y, cv = kfold, scoring = 'accuracy')
+    cv_result = cv_result
+    cv_mean.append(cv_result.mean())
+    std.append(cv_result.std())
+    accuracy.append(cv_result)
+new_models_dataframe2 = pd.DataFrame({'CV Mean':cv_mean,'Std':std}, index = classifiers)
+new_models_dataframe2
 
+#Visualization of accuracies
+plt.subplots(figsize = (12,6))
+box = pd.DataFrame(accuracy, index=classifiers)
+box.T.boxplot()
 
+#Visualization of Average CV Mean accuracy
+new_models_dataframe2['CV Mean'].plot.barh(width = 0.8)
+plt.title('Average CV Mean Accuracy')
+fig = plt.gcf()
+fig.set_size_inches(8,5)
+plt.show()
+
+# Confusion Matrices for all models
+f,ax=plt.subplots(3,3,figsize=(12,10))
+y_pred = cross_val_predict(svm.SVC(kernel='rbf'),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[0,0],annot=True,fmt='2.0f')
+ax[0,0].set_title('Matrix for rbf-SVM')
+y_pred = cross_val_predict(svm.SVC(kernel='linear'),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[0,1],annot=True,fmt='2.0f')
+ax[0,1].set_title('Matrix for Linear-SVM')
+y_pred = cross_val_predict(KNeighborsClassifier(n_neighbors=9),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[0,2],annot=True,fmt='2.0f')
+ax[0,2].set_title('Matrix for KNN')
+y_pred = cross_val_predict(RandomForestClassifier(n_estimators=100),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[1,0],annot=True,fmt='2.0f')
+ax[1,0].set_title('Matrix for Random-Forests')
+y_pred = cross_val_predict(LogisticRegression(),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[1,1],annot=True,fmt='2.0f')
+ax[1,1].set_title('Matrix for Logistic Regression')
+y_pred = cross_val_predict(DecisionTreeClassifier(),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[1,2],annot=True,fmt='2.0f')
+ax[1,2].set_title('Matrix for Decision Tree')
+y_pred = cross_val_predict(GaussianNB(),X,Y,cv=10)
+sns.heatmap(confusion_matrix(Y,y_pred),ax=ax[2,0],annot=True,fmt='2.0f')
+ax[2,0].set_title('Matrix for Naive Bayes')
+plt.subplots_adjust(hspace=0.2,wspace=0.2)
+plt.show()
+ 
+# Parameter tuning 
 
 
 
