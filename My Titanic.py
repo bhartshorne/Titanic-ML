@@ -432,7 +432,7 @@ print('The accuracy of the Random Forests is',metrics.accuracy_score(pred7,test_
 a model. Training and testing data changes, the accuracy will change too, it' called
 model variance. To overcome this we use a generalized model - cross validation'''
 
-# Cross validation
+### CROSS VALIDATION
 from sklearn.model_selection import KFold #for K-fold cross validation
 from sklearn.model_selection import cross_val_score #score evaluation
 from sklearn.model_selection import cross_val_predict #prediction
@@ -493,7 +493,88 @@ ax[2,0].set_title('Matrix for Naive Bayes')
 plt.subplots_adjust(hspace=0.2,wspace=0.2)
 plt.show()
  
-# Parameter tuning 
+# Hyper-Parameter tuning -- tune to change learning rate of algorithm get better model
+# Tuning parameters for 2 best classifiers - SVM and Random Forest
+
+#SVM Grid Search
+from sklearn.model_selection import GridSearchCV
+C=[0.05,0.1,0.2,0.3,0.25,0.4,0.5,0.6,0.7,0.8,0.9,1]
+gamma=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+kernel=['rbf','linear']
+hyper={'kernel':kernel,'C':C,'gamma':gamma}
+gd = GridSearchCV(estimator = svm.SVC(), param_grid = hyper, verbose = True)
+gd.fit(X,Y)
+print(gd.best_score_)
+print(gd.best_estimator_)
+
+#Random Forests
+n_estimators = range(100, 1000, 100)
+hyper = {'n_estimators':n_estimators}
+gd = GridSearchCV(estimator = RandomForestClassifier(random_state = 0), param_grid = hyper,\
+                  verbose = True)
+gd.fit(X,Y)
+print(gd.best_score_)
+print(gd.best_estimator_)
+#Best scores: SVM - 82.82% (C = 0.5, gamma = 0.1), RFC - 81.8% (n_estimators = 900)
+
+### ENSEMBLING - Inrease accuracy by combining models. 
+
+# Voting Classifier
+from sklearn.ensemble import VotingClassifier
+ensemble_lin_rbf=VotingClassifier(estimators=[('KNN',KNeighborsClassifier(n_neighbors=10)),
+                                              ('RBF',svm.SVC(probability=True,kernel='rbf',C=0.5,gamma=0.1)),
+                                              ('RFor',RandomForestClassifier(n_estimators=500,random_state=0)),
+                                              ('LR',LogisticRegression(C=0.05)),
+                                              ('DT',DecisionTreeClassifier(random_state=0)),
+                                              ('NB',GaussianNB()),
+                                              ('svm',svm.SVC(kernel='linear',probability=True))
+                                             ], 
+                       voting='soft').fit(train_X,train_Y)
+print('The accuracy for ensembled model is:',ensemble_lin_rbf.score(test_X,test_Y))
+cross=cross_val_score(ensemble_lin_rbf,X,Y, cv = 10,scoring = "accuracy")
+print('The cross validated score is',cross.mean())
+
+#Bagging 
+#KNN
+from sklearn.ensemble import BaggingClassifier
+model = BaggingClassifier(base_estimator = KNeighborsClassifier(n_neighbors = 3), random_state = 0,\
+                          n_estimators = 700)
+model.fit(train_X,train_Y)
+pred = model.predict(test_X)
+print('The accuracy for bagged KNN is:', metrics.accuracy_score(test_Y, pred))
+result = cross_val_score(model, X, Y, cv =10, scoring = 'accuracy')
+print('The cross validated score for bagged Decision Tree is:', result.mean())
+
+#Bagging
+#Decision Tree
+model = BaggingClassifier(base_estimator = DecisionTreeClassifier(), random_state = 0,\
+                          n_estimators = 100)
+model.fit(train_X,train_Y)
+pred = model.predict(test_X)
+print('The accuracy for bagged Decision Tree is:', metrics.accuracy_score(pred, test_Y))
+res = cross_val_score(model, X, Y, cv = 10, scoring = 'accuracy')
+print('The cross validated score for bagged Decision Tree is:', res.mean())
+
+# Boosting -- iterative approach to imporove the accuracy
+# Adaboost
+from sklearn.ensemble import AdaBoostClassifier
+ada = AdaBoostClassifier(n_estimators = 200, random_state = 0, learning_rate = 0.1)
+result = cross_val_score(ada, X, Y, scoring = 'accuracy', cv = 10)
+print('The cross validated score of AdaBoost is:', result.mean())
+
+#Stochastic Gradient Boosting
+from sklearn.ensemble import GradientBoostingClassifier
+grad=GradientBoostingClassifier(n_estimators=500,random_state=0,learning_rate=0.1)
+result=cross_val_score(grad,X,Y,cv=10,scoring='accuracy')
+print('The cross validated score for Gradient Boosting is:',result.mean())
+
+#XGBoost
+import xgboost as xg
+xgboost=xg.XGBClassifier(n_estimators=900,learning_rate=0.1)
+result=cross_val_score(xgboost,X,Y,cv=10,scoring='accuracy')
+print('The cross validated score for XGBoost is:',result.mean())
+
+
 
 
 
