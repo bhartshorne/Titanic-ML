@@ -574,7 +574,15 @@ xgboost=xg.XGBClassifier(n_estimators=900,learning_rate=0.1)
 result=cross_val_score(xgboost,X,Y,cv=10,scoring='accuracy')
 print('The cross validated score for XGBoost is:',result.mean())
 
-
+#Highest accuracy - AdaBoost
+#Hyper-parameter tuning for AdaBoost
+n_estimators=list(range(100,1100,100))
+learn_rate=[0.05,0.1,0.2,0.3,0.25,0.4,0.5,0.6,0.7,0.8,0.9,1]
+hyper={'n_estimators':n_estimators,'learning_rate':learn_rate}
+gd=GridSearchCV(estimator=AdaBoostClassifier(),param_grid=hyper,verbose=True)
+gd.fit(X,Y)
+print(gd.best_score_)
+print(gd.best_estimator_)
 
 
 
