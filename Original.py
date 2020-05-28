@@ -11,10 +11,8 @@ warnings.filterwarnings('ignore')
 
 #Importing dataset
 os.chdir('C:\\Users\\Owner\\Desktop\\Machine Learning Practice\\Titanic ML')
-train1 = pd.read_csv('train.csv')
-test1 = pd.read_csv('test.csv')
-
-df = train1.append(test1, sort=True)
+df = pd.read_csv('train.csv')
+test = pd.read_csv('test.csv')
 
 # 1) EDA
 
@@ -347,10 +345,6 @@ plt.show()
 #High corr between parch and famsize, sibsp and famsize. High negative between alone and famsize
 # Why not removing some? Multicolinearity?
 
-#Split data back into train_test
-train2 = df.iloc[0:891,:]
-test2 = df.iloc[891:,: ]
-
 
 # 3) PREDICTIVE MODELING -- using clasification algorithms
 
@@ -366,13 +360,14 @@ from sklearn import metrics #accuracy measure
 from sklearn.metrics import confusion_matrix #for confusion matrix
 
 #Splitting the data
-train,test=train_test_split(train2,test_size=0.3,random_state=0)
+train,test=train_test_split(df,test_size=0.3,random_state=0,stratify=df['Survived'])
 train_X=train[train.columns[1:]]
 train_Y=train[train.columns[:1]]
 test_X=test[test.columns[1:]]
 test_Y=test[test.columns[:1]]
-X=train[train2.columns[1:]]
-Y=train2['Survived']
+X=df[df.columns[1:]]
+Y=df['Survived']
+
 
 #Radial SVM (rbf kernel)
 model = svm.SVC(kernel='rbf',C=1,gamma=0.1)
