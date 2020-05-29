@@ -370,7 +370,7 @@ Y=df['Survived']
 
 
 #Radial SVM (rbf kernel)
-model = svm.SVC(kernel='rbf',C=1,gamma=0.1)
+model = svm.SVC(C = 1.0)
 model.fit(train_X,train_Y)
 pred1 = model.predict(test_X)
 print('Accuracy for rbf SVM is ', metrics.accuracy_score(pred1,test_Y))
