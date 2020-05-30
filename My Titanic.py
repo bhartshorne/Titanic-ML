@@ -299,7 +299,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn import metrics #accuracy measure
-from sklearn import svm #support vector Machine
+from sklearn.svm import SVC #support vector Machine
 from sklearn.ensemble import RandomForestClassifier #Random Forest
 from sklearn.neighbors import KNeighborsClassifier #KNN
 from sklearn.naive_bayes import GaussianNB #Naive bayes
@@ -328,26 +328,93 @@ pipe.fit(X_train, y_train)
 pred1 = pipe.predict(X_test)
 print('The accuracy of Logistic Regression is:', metrics.accuracy_score(pred1, y_test))
 
-#Support Vector Machines
-kernels = ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed']
+#SVM
+kernels = ['linear', 'poly', 'rbf', 'sigmoid']
 accuracy = []
 
 for kernel in kernels:
-    svm = svm.SVC(kernel = kernel)
-    pipe = make_pipeline(column_trans, svm)
+    svc = SVC(kernel = kernel, random_state = 42)
+    pipe = make_pipeline(column_trans, svc)
     pipe.fit(X_train, y_train)
     pred = pipe.predict(X_test)
     accuracy.append(metrics.accuracy_score(pred, y_test))
 
+print(accuracy) #linear and rbf give the highest accuracy
 
+#DECISION TREE 
+criterion = ['gini', 'entropy']
+accuracy = []
 
-model = svm.SVC(kernel='linear',C=0.1,gamma=0.1)
-pipe = make_pipeline(column_trans, svm)
+for crit in criterion:
+    dtc = DecisionTreeClassifier(criterion = crit, random_state = 42)
+    pipe = make_pipeline(column_trans, dtc)
+    pipe.fit(X_train, y_train)
+    pred = pipe.predict(X_test)
+    accuracy.append(metrics.accuracy_score(pred, y_test))
+
+print(accuracy) #entropy
+
+#RANDOM FOREST
+rfc = RandomForestClassifier(n_estimators = 100, random_state = 42)
+pipe = make_pipeline(column_trans, rfc)
 pipe.fit(X_train, y_train)
 pred = pipe.predict(X_test)
-print('The accuracy of SVM is:', metrics.accuracy_score(pred, y_test))
+print('The accuracy of Random Forest is:', metrics.accuracy_score(pred, y_test))
 
+#KNN
+neighbors = list(range(1,11,1))
+accuracy = []
 
+for n in neighbors:
+    knn = KNeighborsClassifier(n_neighbors = n)
+    pipe = make_pipeline(column_trans, knn)
+    pipe.fit(X_train, y_train)
+    pred = pipe.predict(X_test)
+    accuracy.append(metrics.accuracy_score(pred, y_test))
+    
+print(accuracy) #neighbors = 5 highest accuracy
+
+#NAIVE BAYES
+
+nb = GaussianNB()
+pipe = make_pipeline(column_trans, nb)
+pipe.fit(X_train, y_train)
+pred = pipe.predict(X_test)
+print('The accuracy of Naive Bayes is:', metrics.accuracy_score(pred, y_test))
+
+# CROSS VALIDATION OF ALL MODELS
+from sklearn.model_selection import KFold #for K-fold cross validation
+from sklearn.model_selection import cross_val_score #score evaluation
+from sklearn.model_selection import cross_val_predict #prediction
+
+means = []
+accuracy = []
+std = []
+kfold = KFold(n_splits = 10, random_state = 42)
+models = [make_pipeline(column_trans,LogisticRegression()),make_pipeline(column_trans, SVC(kernel = 'linear')),\
+          make_pipeline(column_trans, SVC(kernel = 'rbf')), make_pipeline(column_trans, DecisionTreeClassifier(criterion = 'entropy')),\
+          make_pipeline(column_trans, RandomForestClassifier(n_estimators = 100)),\
+          make_pipeline(column_trans, KNeighborsClassifier(n_neighbors = 5)), make_pipeline(column_trans, GaussianNB())]
+classifiers = ['LogReg', 'SVC(linear)', 'SCV(rbf)', 'DecisionTree', 'RandForest',\
+               'KNN', 'NaiveBayes']
+
+for model in models:
+    model = model
+    cv_result = cross_val_score(model, X, y, cv= kfold, scoring = 'accuracy')
+    cv_result = cv_result
+    means.append(cv_result.mean())
+    std.append(cv_result.std())
+    accuracy.append(cv_result)
+
+models_df = pd.DataFrame({"CV Mean":means, "Std":std}, index  = classifiers)
+
+#naive = cross_val_score()
+
+#Visualization #eexcluding Naive Bayes because of outlier ~38% on one kfold. ########WHY?
+f, ax = plt.subplots(figsize = (12, 6))
+box = pd.DataFrame(accuracy[0:6], index = classifiers[0:6])
+box.T.boxplot()
+ax.set_yticks(list(range(0.75, 1.01, 0.05)))
 
 
 
