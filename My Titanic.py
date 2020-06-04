@@ -293,6 +293,7 @@ appended_df.head(5)
 #################################################################### ONE HOT ENCODING, PIPELINE, 
 
 from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import StandardScaler
 from sklearn.compose import make_column_transformer #make_col_trans(OneHotEncoder(), [cols], remainder = passthrough)
 from sklearn.pipeline import make_pipeline #make_pipeline(column_trans, ML model)
 from sklearn.model_selection import cross_val_score
@@ -321,6 +322,9 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.2, rando
 column_trans = make_column_transformer((OneHotEncoder(), ['Embarked', 'Sex', 'Title',\
                                                          'Fare_Range', 'Age_group']),\
                                        remainder = 'passthrough')
+sc_column_trans = make_column_transformer((OneHotEncoder(), ['Embarked', 'Sex', 'Title',\
+                                                         'Fare_Range', 'Age_group']),\
+                                          (StandardScaler(), ['Fare_Range']), remainder = 'passthrough')
 #LOGISTIC REGRESSION
 logReg = LogisticRegression()
 pipe = make_pipeline(column_trans, logReg)
@@ -340,6 +344,15 @@ for kernel in kernels:
     accuracy.append(metrics.accuracy_score(pred, y_test))
 
 print(accuracy) #linear and rbf give the highest accuracy
+
+for kernel in kernels:
+    svc = SVC(kernel = kernel, random_state = 42)
+    pipe = make_pipeline(sc_column_trans, svc)
+    pipe.fit(X_train, y_train)
+    pred = pipe.predict(X_test)
+    accuracy.append(metrics.accuracy_score(pred, y_test))
+
+print(accuracy)
 
 #DECISION TREE 
 criterion = ['gini', 'entropy']
@@ -384,9 +397,7 @@ print('The accuracy of Naive Bayes is:', metrics.accuracy_score(pred, y_test))
 
 # CROSS VALIDATION OF ALL MODELS
 from sklearn.model_selection import KFold #for K-fold cross validation
-from sklearn.model_selection import cross_val_score #score evaluation
-from sklearn.model_selection import cross_val_predict #prediction
-
+from sklearn.model_selection import cross_val_predict
 means = []
 accuracy = []
 std = []
@@ -408,13 +419,83 @@ for model in models:
 
 models_df = pd.DataFrame({"CV Mean":means, "Std":std}, index  = classifiers)
 
-#naive = cross_val_score()
-
 #Visualization #eexcluding Naive Bayes because of outlier ~38% on one kfold. ########WHY?
 f, ax = plt.subplots(figsize = (12, 6))
 box = pd.DataFrame(accuracy[0:6], index = classifiers[0:6])
 box.T.boxplot()
-ax.set_yticks(list(range(0.75, 1.01, 0.05)))
+plt.show()
+
+models_df['CV Mean'].plot.barh(width = 0.8)
+plt.title('Average CV Mean Accuracy')
+fig=plt.gcf()
+fig.set_size_inches(8,5)
+plt.show()
+
+#Let's make confusion matrix to see correct/incorrect classifications by each model
+f, ax = plt.subplots(3,3,figsize = (12,10))
+pred = cross_val_predict(make_pipeline(column_trans,LogisticRegression()), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,0], annot = True, fmt='2.0f')
+ax[0,0].set_title('Matrix of LogReg')
+pred = cross_val_predict(make_pipeline(column_trans, SVC(kernel = 'linear')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,1], annot = True, fmt='2.0f')
+ax[0,1].set_title('Matrix of Linear SVC')
+pred = cross_val_predict(make_pipeline(column_trans, SVC(kernel = 'rbf')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,2], annot = True, fmt='2.0f')
+ax[0,2].set_title('Matrix of RBF SVC')
+pred = cross_val_predict(make_pipeline(column_trans, DecisionTreeClassifier(criterion = 'entropy')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,0], annot = True, fmt='2.0f')
+ax[1,0].set_title('Matrix of Decision Tree')
+pred = cross_val_predict( make_pipeline(column_trans, RandomForestClassifier(n_estimators = 100)), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,1], annot = True, fmt='2.0f')
+ax[1,1].set_title('Matrix of Random Forest')
+pred = cross_val_predict(make_pipeline(column_trans, KNeighborsClassifier(n_neighbors = 5)), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,2], annot = True, fmt='2.0f')
+ax[1,2].set_title('Matrix of KNN')
+pred = cross_val_predict( make_pipeline(column_trans, GaussianNB()), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[2,0], annot = True, fmt='2.0f')
+ax[2,0].set_title('Matrix of Naive Bayes')
+plt.show()
+########################Parameter Tuning
+
+#Shows available params when using gridsearch with pipeline
+#make_pipeline(column_trans,DecisionTreeClassifier()).get_params().keys()
+
+#SVC
+from sklearn.model_selection import GridSearchCV
+C=[0.05,0.1,0.2,0.3,0.25,0.4,0.5,0.6,0.7,0.8,0.9,1] #Penalty parameter
+gamma=[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0] #Parameter for non-linear hyperplanes
+kernel=['rbf','linear']
+param = {'svc__C':C, 'svc__kernel' : kernel, 'svc__gamma' : gamma, 'svc__random_state': [42]}
+gd = GridSearchCV(estimator = make_pipeline(column_trans,SVC()) , param_grid = param, verbose = True)
+gd.fit(X,y)
+gd.best_params_
+gd.best_score_
+# C = 0.3, gamma = 0.7, rbf, random state 42
+
+#Decision Tree fro practice
+mss = list(range(10, 500, 20))
+max_depth = list(range(1,20,2))
+criterion=['gini','entropy']
+param = {'decisiontreeclassifier__min_samples_split':mss,'decisiontreeclassifier__max_depth':max_depth,\
+         'decisiontreeclassifier__criterion':criterion, 'decisiontreeclassifier__random_state': [42]}
+gd = GridSearchCV(estimator = make_pipeline(column_trans,DecisionTreeClassifier()) , param_grid = param, verbose = True)
+gd.fit(X,y)
+gd.best_params_
+gd.best_score_
+#entropy, max depth 3, min samples 10
+
+#Logistic Regression
+penalty = ['l1', 'l2']
+C = np.logspace(-3,3,7)
+param = {'logisticregression__penalty':penalty, 'logisticregression__C':C, 'logisticregression__random_state':[42]}
+gd = GridSearchCV(estimator = make_pipeline(column_trans,LogisticRegression()) , param_grid = param, verbose = True)
+gd.fit(X,y)
+print(gd.best_params_)
+print(gd.best_score_)
+#0.1, l2
+
+X_train.dtypes
+y_train.dtypes
 
 
 
@@ -423,6 +504,35 @@ ax.set_yticks(list(range(0.75, 1.01, 0.05)))
 
 
 
+
+
+
+
+
+#Let's make confusion matrix to see correct/incorrect classifications by each model
+f, ax = plt.subplots(3,3,figsize = (12,10))
+pred = cross_val_predict(make_pipeline(column_trans,LogisticRegression()), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,0], annot = True, fmt='2.0f')
+ax[0,0].set_title('Matrix of LogReg')
+pred = cross_val_predict(make_pipeline(column_trans, SVC(kernel = 'linear')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,1], annot = True, fmt='2.0f')
+ax[0,1].set_title('Matrix of Linear SVC')
+pred = cross_val_predict(make_pipeline(column_trans, SVC(kernel = 'rbf')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[0,2], annot = True, fmt='2.0f')
+ax[0,2].set_title('Matrix of RBF SVC')
+pred = cross_val_predict(make_pipeline(column_trans, DecisionTreeClassifier(criterion = 'entropy')), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,0], annot = True, fmt='2.0f')
+ax[1,0].set_title('Matrix of Decision Tree')
+pred = cross_val_predict( make_pipeline(column_trans, RandomForestClassifier(n_estimators = 100)), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,1], annot = True, fmt='2.0f')
+ax[1,1].set_title('Matrix of Random Forest')
+pred = cross_val_predict(make_pipeline(column_trans, KNeighborsClassifier(n_neighbors = 5)), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[1,2], annot = True, fmt='2.0f')
+ax[1,2].set_title('Matrix of KNN')
+pred = cross_val_predict( make_pipeline(column_trans, GaussianNB()), X, y, cv = 10)
+sns.heatmap(confusion_matrix(pred, y), ax = ax[2,0], annot = True, fmt='2.0f')
+ax[2,0].set_title('Matrix of Naive Bayes')
+plt.show()
 
 
 
